@@ -1,76 +1,99 @@
 package kodlama.io.demo.service.concretes;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import kodlama.io.demo.entites.concretes.Language;
-import kodlama.io.demo.repos.concretes.InMemoryLanguageRepository;
+import kodlama.io.demo.repos.abstracts.LanguageRepository;
 import kodlama.io.demo.service.abstracts.LanguageService;
+import kodlama.io.demo.service.dto.requests.CreateLanguageRequest;
+import kodlama.io.demo.service.dto.requests.UpdateLanguageRequest;
+import kodlama.io.demo.service.dto.responses.FindByIdLanguageResponse;
+import kodlama.io.demo.service.dto.responses.GetLanguageResponse;
+import kodlama.io.demo.service.dto.responses.UpdateLanguageResponse;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @Service
 public class LanguageServiceImpl implements LanguageService {
-	@Autowired
-	InMemoryLanguageRepository repos;
+
+	private final LanguageRepository languageRepos;
+	private final ModelMapper modelMapper;
 
 	@Override
-	public List<Language> getAll() {
-		return repos.getAll();
+	public List<GetLanguageResponse> getAll() {
+		List<Language> languages = languageRepos.findAll().stream().map(i -> i).collect(Collectors.toList());
+		List<GetLanguageResponse> languagesResponse = new ArrayList<GetLanguageResponse>();
+
+		for (Language language : languages) {
+			languagesResponse.add(new GetLanguageResponse(language.getId(), language.getName()));
+		}
+
+		return languagesResponse;
 	}
 
 	@Override
-	public Language add(Language language) {
+	public CreateLanguageRequest add(CreateLanguageRequest newLanguage) {
+		Language language = modelMapper.map(newLanguage, Language.class);
+		Optional<Language> oldLanguage = languageRepos.findByName(newLanguage.getName());
 
-		if (language.getName().isEmpty()) {
+		if (newLanguage.getName().isEmpty()) {
+
 			throw new RuntimeException("Proglamlama dili boş geçilemez");
 		}
-		for (Language oldLanguage : getAll()) {
-			if (language.getName().equals(oldLanguage.getName())) {
-				throw new RuntimeException("Programlama dili zaten var");
-			}
+		if (oldLanguage.isPresent()) {
+			throw new RuntimeException("Proglamlama dili zaten var");
 		}
-		return repos.add(language);
+		languageRepos.save(language);
+		return newLanguage;
+
 	}
 
 	@Override
-	public Language update(Language language, int id) {
-		List<Language> languages = getAll();
-		for (Language oldLanguage : languages) {
-			if (oldLanguage.getId() == id) {
-				repos.update(language, getAll().indexOf(oldLanguage));
-			} else {
-				throw new RuntimeException("Dil bulunamadı");
-			}
-		}
-		return language;
-	}
+	public UpdateLanguageResponse update(int id, UpdateLanguageRequest newLanguage) {
+		Optional<Language> language = languageRepos.findById(id);
+		if (language.isPresent()) {
+			Language languageToUpdate = language.get();
+			languageToUpdate.setName(newLanguage.getName());
+			UpdateLanguageResponse languageResponse = modelMapper.map(languageToUpdate, UpdateLanguageResponse.class);
+			languageRepos.save(languageToUpdate);
+			return languageResponse;
 
-	@Override
-	public void delete(int id)  {
-		List<Language> languages = getAll();
-		for (Language language : languages) {
-			if (language.getId() == id) {
-				repos.delete(id);
-				break;
-			} else {
-				throw new RuntimeException("Geçersiz id");
-			}
+		} else {
+
+			throw new RuntimeException("Dil bulunamadı : " + id);
 		}
 
 	}
 
 	@Override
-	public Language findById(int languageId) {
-		List<Language> languages = getAll();
-		for (Language languageById : languages) {
-			if (languageId == languageById.getId()) {
-				return languageById;
-			} else {
-				throw new RuntimeException("Bu id ile kayıtlı dil yok");
-			}
+	public void delete(int id) {
+		Optional<Language> language = languageRepos.findById(id);
+		if (language.isPresent()) {
+			languageRepos.deleteById(language.get().getId());
+		} else {
+
+			throw new RuntimeException("Geçersiz id : " + id);
 		}
-		return null;
+
+	}
+
+	@Override
+	public FindByIdLanguageResponse findById(int languageId) {
+		Optional<Language> language = languageRepos.findById(languageId);
+
+		if (language.isPresent()) {
+			FindByIdLanguageResponse languageResponse = modelMapper.map(language.get(), FindByIdLanguageResponse.class);
+			return languageResponse;
+		} else {
+
+			throw new RuntimeException("Bu id ile kayıtlı dil yok : " + languageId);
+		}
 	}
 
 }

@@ -1,14 +1,13 @@
 package kodlama.io.demo.repos.abstracts;
 
-import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import kodlama.io.demo.entites.concretes.Language;
 
-public interface LanguageRepository {
-	List<Language> getAll();
-	Language add(Language language);
-	Language update(Language language,int id);
-	void delete(int languageId);
-	Language findById(Language language);
+public interface LanguageRepository extends JpaRepository<Language, Integer>{
+
+	Optional<Language> findByName(String name);
 
 }
